@@ -1,0 +1,10 @@
+[package]
+name = "atomic-write"
+version = "0.1.0"
+authors = ["greg <gregory.mkv@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+libc = "0.2.45"
+errno = "0.2.4"
+nix = "0.12.0"
