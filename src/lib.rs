@@ -3,37 +3,10 @@ use nix::{
     sys::stat::Mode,
     unistd::{close, fsync, unlink, write},
 };
-use std::{fmt, path::Path};
+use std::path::Path;
 
-#[derive(Debug)]
-pub struct Error {
-    message: String,
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self)
-    }
-}
-
-impl std::error::Error for Error {}
-
-impl From<nix::Error> for Error {
-    fn from(e: nix::Error) -> Self {
-        Error {
-            message: format!("{}", e),
-        }
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(e: std::io::Error) -> Self {
-        Error {
-            message: format!("{}", e),
-        }
-    }
-}
-
+mod error;
+pub use self::error::Error;
 
 pub fn atomic_write(path: impl Into<String>, contents: impl Into<Vec<u8>>) -> Result<(), Error> {
     let original_path = path.into();
