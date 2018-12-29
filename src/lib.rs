@@ -1,76 +1,61 @@
-use errno::{errno, Errno};
-use libc;
-use std::{ffi::CString, fmt};
-use nix;
+use nix::{
+    fcntl::{open, OFlag},
+    sys::stat::Mode,
+    unistd::{close, fsync, unlink, write},
+};
+use std::{path::Path, fmt};
 
 #[derive(Debug)]
-pub enum Error {
-    Libc(Errno),
-    StrNul,
+pub struct Error {
+    message: String,
+}
+
+impl<T> From<T> for Error
+where
+    T: std::error::Error,
+{
+    fn from(e: T) -> Self {
+        Error {
+            message: format!("{}", e),
+        }
+    }
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Error::Libc(errno) => format!("{}", errno),
-                Error::StrNul => "An interior nul byte was found in the path".to_string(),
-            }
-        )
+        write!(f, "{}", self)
     }
-}
-
-fn result(data: i32) -> Result<i32, Error> {
-    if data == -1 {
-        return Err(Error::Libc(errno()));
-    }
-    return Ok(data);
-}
-
-pub fn c_str(s: String) -> Result<*const i8, Error> {
-    CString::new(s)
-        .map(|s| s.as_ptr())
-        .map_err(|_| Error::StrNul)
 }
 
 pub fn atomic_write(path: impl Into<String>, contents: impl Into<Vec<u8>>) -> Result<(), Error> {
-    let rename = |old_path, new_path| result(unsafe { libc::rename(old_path, new_path) });
-
     let original_path = path.into();
     let mut tmp_path = original_path.clone();
     tmp_path.push_str(".tmp");
-    println!("{} {}", original_path, tmp_path);
-    let (original_path, tmp_path) = (c_str(original_path)?, c_str(tmp_path)?);
+
+    let tmp_path_s = std::path::Path::new(&tmp_path);
+    let original_path_s = std::path::Path::new(&original_path);
+
+    match unlink(tmp_path_s) {
+        Ok(()) | Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => {}
+        Err(e) => return Err(e.into()),
+    }
 
     let fd = open(
-        c_str(".".to_string())?,
-               libc::O_CREAT | libc::O_TRUNC,
-
-        libc::S_IRUSR
-            | libc::S_IWUSR
-            | libc::S_IRGRP
-            | libc::S_IWGRP
-            | libc::S_IROTH
-            | libc::S_IWOTH,
-    )?;
-    println!("Opened!");
-
-
-    let mut bytes = contents.into();
-    let num_bytes = bytes.len();
-
-    let bytes_written = write(
-        fd,
-        bytes.as_mut_ptr() as *mut core::ffi::c_void,
-        num_bytes,
+        tmp_path_s,
+        OFlag::O_RDWR | OFlag::O_CREAT | OFlag::O_TRUNC,
+        Mode::S_IRUSR
+            | Mode::S_IWUSR
+            | Mode::S_IRGRP
+            | Mode::S_IWGRP
+            | Mode::S_IROTH
+            | Mode::S_IWOTH,
     )?;
 
-    println!("Bytes: {}, Written: {}", num_bytes, bytes_written);
+    write(fd, &contents.into())?;
 
+    fsync(fd)?;
     close(fd)?;
-    rename(tmp_path, original_path)?;
+    std::fs::rename(tmp_path_s, original_path_s)?;
 
     Ok(())
 }
