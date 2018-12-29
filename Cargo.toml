@@ -1,6 +1,6 @@
 [package]
 name = "atomic-write"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["greg <gregory.mkv@gmail.com>"]
 license = "MIT"
 description = "Efficient atomic writes with replacement"
