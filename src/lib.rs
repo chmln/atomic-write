@@ -32,8 +32,8 @@ pub fn atomic_write(path: impl Into<String>, contents: impl Into<Vec<u8>>) -> Re
     let mut tmp_path = original_path.clone();
     tmp_path.push_str(".tmp");
 
-    let tmp_path_s = std::path::Path::new(&tmp_path);
-    let original_path_s = std::path::Path::new(&original_path);
+    let tmp_path_s = Path::new(&tmp_path);
+    let original_path_s = Path::new(&original_path);
 
     match unlink(tmp_path_s) {
         Ok(()) | Err(nix::Error::Sys(nix::errno::Errno::ENOENT)) => {}
