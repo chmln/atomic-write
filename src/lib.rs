@@ -8,7 +8,7 @@ use std::path::Path;
 mod error;
 pub use self::error::Error;
 
-pub fn atomic_write(path: impl AsRef<str>, contents: impl Into<Vec<u8>>) -> Result<(), Error> {
+pub fn atomic_write(path: impl AsRef<str>, contents: impl AsRef<[u8]>) -> Result<(), Error> {
     let original_path = path.as_ref();
     let mut tmp_path = original_path.to_string();
     tmp_path.push_str(".tmp~");
@@ -31,7 +31,7 @@ pub fn atomic_write(path: impl AsRef<str>, contents: impl Into<Vec<u8>>) -> Resu
             | Mode::S_IWOTH,
     )?;
 
-    write(fd, &contents.into())?;
+    write(fd, contents.as_ref())?;
 
     fsync(fd)?;
     close(fd)?;
